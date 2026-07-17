@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  TracePilot QA — design tokens.
+  Values are space-separated RGB channels so Tailwind's `/<alpha-value>`
+  modifier works on every semantic color. No blue / green / yellow anywhere:
+  the identity is warm ivory + graphite with muted ruby, and rust reserved
+  for warnings only.
+*/
+@layer base {
+  :root {
+    --background: 244 239 230; /* warm ivory */
+    --foreground: 43 38 34; /* graphite */
+
+    --card: 251 248 242;
+    --card-foreground: 43 38 34;
+
+    --muted: 231 224 211; /* ash */
+    --muted-foreground: 107 98 89;
+
+    --primary: 158 43 59; /* muted ruby */
+    --primary-foreground: 247 242 234;
+
+    --accent: 237 230 218;
+    --accent-foreground: 43 38 34;
+
+    --rust: 180 98 60; /* warnings only */
+    --rust-foreground: 247 242 234;
+
+    /* Severity tier — three distinct reds, no orange/blue/green/yellow. */
+    --wine: 112 32 48; /* deepest — critical */
+    --soft-red: 190 74 82; /* lightest — medium */
+
+    --border: 221 212 198;
+    --input: 221 212 198;
+    --ring: 158 43 59;
+
+    --shadow-color: 60 44 34;
+
+    --radius: 0.7rem;
+
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Space Grotesk", var(--font-sans);
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  }
+
+  .dark {
+    --background: 20 18 16; /* deep warm charcoal */
+    --foreground: 236 229 216; /* ivory */
+
+    --card: 29 26 23; /* smoke */
+    --card-foreground: 236 229 216;
+
+    --muted: 38 34 32; /* smoke gray */
+    --muted-foreground: 154 145 136;
+
+    --primary: 190 62 80; /* wine / ruby */
+    --primary-foreground: 247 242 234;
+
+    --accent: 36 31 28;
+    --accent-foreground: 236 229 216;
+
+    --rust: 198 122 78;
+    --rust-foreground: 20 18 16;
+
+    --wine: 150 52 76; /* deepest — critical */
+    --soft-red: 210 104 112; /* lightest — medium */
+
+    --border: 48 43 39;
+    --input: 48 43 39;
+    --ring: 192 82 100;
+
+    --shadow-color: 0 0 0;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Selection carries the ruby identity. */
+  ::selection {
+    background: rgb(var(--primary) / 0.85);
+    color: rgb(var(--primary-foreground));
+  }
+
+  /* Consistent, visible keyboard focus across the app. */
+  :focus-visible {
+    outline: none;
+    @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Small-caps mono eyebrow — echoes console/trace output, the product's world. */
+  .eyebrow {
+    @apply font-mono text-[0.7rem] uppercase tracking-eyebrow text-muted-foreground;
+  }
+
+  /* Hairline grid backdrop for hero / section atmosphere. */
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, rgb(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+  }
+}

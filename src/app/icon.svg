@@ -1,0 +1,31 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    TracePilot QA favicon.
+    - Rounded graphite tile reads on both light and dark tabs.
+    - A route/trace path steps across the tile (browser navigation) and its
+      vertical stem + top bar form an implied "T".
+    - Nodes mark visited routes; the ruby node is the autonomous agent's
+      current position (the pilot signal).
+    Palette: graphite / ivory / ruby / wine. No blue, green, or yellow.
+  -->
+  <rect width="64" height="64" rx="14" fill="#1E1B18"/>
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.25" stroke="#EFE7DA" stroke-opacity="0.10" stroke-width="1.5"/>
+
+  <!-- Top route bar (the "T" crossbar / entry route) -->
+  <path d="M18 19 H46" stroke="#EFE7DA" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Trace path: descends the stem, then steps out to the agent -->
+  <path d="M32 19 V34 L42 44" stroke="#EFE7DA" stroke-opacity="0.9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 34 L22 44" stroke="#9E2B3B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Route nodes -->
+  <circle cx="18" cy="19" r="3.4" fill="#EFE7DA"/>
+  <circle cx="46" cy="19" r="3.4" fill="#EFE7DA"/>
+  <circle cx="32" cy="34" r="3.6" fill="#70202F"/>
+  <circle cx="42" cy="44" r="3.2" fill="#EFE7DA" fill-opacity="0.75"/>
+
+  <!-- Agent signal: current position, with a halo pulse -->
+  <circle cx="22" cy="44" r="8" fill="#9E2B3B" fill-opacity="0.22"/>
+  <circle cx="22" cy="44" r="4.4" fill="#BE3E50"/>
+  <circle cx="22" cy="44" r="1.7" fill="#EFE7DA"/>
+</svg>

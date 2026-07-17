@@ -1,0 +1,139 @@
+// TracePilot QA — data model.
+//
+// Projects own QA runs; a run produces browser steps (the trace), findings
+// (detected problems), and generated Playwright tests. The autonomous agent
+// that populates these is implemented in a later phase.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// A website under test.
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  baseUrl   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  runs QaRun[]
+
+  @@index([createdAt])
+}
+
+/// One autonomous QA session against a project.
+///
+/// NOTE ON CREDENTIALS: login credentials submitted with a run request are
+/// intentionally NOT modeled here. They must never be persisted in plain
+/// text — they live only in the run request flow for now.
+/// TODO(secure-storage): store an encrypted secret reference once a KMS/
+/// encrypted-vault integration lands with the agent phase.
+model QaRun {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  status     RunStatus @default(QUEUED)
+  goal       String
+  startedAt  DateTime?
+  finishedAt DateTime?
+  summary    String?
+  score      Int?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  findings       Finding[]
+  steps          BrowserStep[]
+  generatedTests GeneratedTest[]
+
+  @@index([projectId])
+  @@index([status, createdAt])
+}
+
+/// A problem the agent detected during a run.
+model Finding {
+  id                String          @id @default(cuid())
+  runId             String
+  run               QaRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  title             String
+  description       String
+  severity          FindingSeverity @default(MEDIUM)
+  category          FindingCategory @default(UNKNOWN)
+  url               String?
+  selector          String?
+  screenshotPath    String?
+  reproductionSteps Json?
+
+  createdAt         DateTime        @default(now())
+
+  @@index([runId, severity])
+  @@index([runId, category])
+}
+
+/// One action in the agent's browser trace.
+model BrowserStep {
+  id             String   @id @default(cuid())
+  runId          String
+  run            QaRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  order          Int
+  action         String
+  target         String?
+  url            String?
+  result         String?
+  screenshotPath String?
+  consoleErrors  Json?
+  networkErrors  Json?
+
+  createdAt      DateTime @default(now())
+
+  @@unique([runId, order])
+  @@index([runId])
+}
+
+/// A test generated from a verified flow.
+model GeneratedTest {
+  id        String   @id @default(cuid())
+  runId     String
+  run       QaRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  title     String
+  framework String   @default("playwright")
+  code      String
+
+  createdAt DateTime @default(now())
+
+  @@index([runId])
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum FindingSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FindingCategory {
+  CONSOLE
+  NETWORK
+  ROUTE
+  UI
+  ACCESSIBILITY
+  AUTH
+  FORM
+  UNKNOWN
+}
