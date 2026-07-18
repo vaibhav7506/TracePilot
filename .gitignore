@@ -10,6 +10,7 @@ next-env.d.ts
 
 # production
 /build
+/dist
 
 # testing
 /coverage
@@ -21,6 +22,7 @@ next-env.d.ts
 
 # runner-generated screenshots (served from /public/screenshots at runtime)
 /public/screenshots/
+/storage/
 
 # prisma
 /prisma/migrations/dev.db*
@@ -32,8 +34,11 @@ next-env.d.ts
 
 # misc
 .DS_Store
+tsconfig.tsbuildinfo
+*.tsbuildinfo
 *.pem
 npm-debug.log*
+debug.log
 yarn-debug.log*
 yarn-error.log*
 .idea/

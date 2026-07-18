@@ -2,7 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { ThemeProvider, themeNoFlashScript } from "@/components/theme/theme-provider";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import "./globals.css";
+
+const applicationUrl = process.env.APP_URL?.trim() || "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: {
@@ -12,14 +15,7 @@ export const metadata: Metadata = {
   description:
     "TracePilot QA explores your site like a real user, detects broken flows, captures screenshots and console errors, and generates Playwright tests.",
   applicationName: "TracePilot QA",
-  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
-  // The SVG mark lives at src/app/icon.svg (Next file convention). Declaring it
-  // here too makes the icon metadata explicit and controls type/order.
-  icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
-  },
+  metadataBase: new URL(applicationUrl),
 };
 
 export const viewport: Viewport = {
@@ -29,23 +25,18 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-          rel="stylesheet"
-        />
         {/* Set theme before paint to avoid a flash of the wrong mode. */}
         <script dangerouslySetInnerHTML={{ __html: themeNoFlashScript }} />
       </head>
-      <body className="min-h-dvh">
+      <body className="min-h-dvh" suppressHydrationWarning>
         <ThemeProvider>
           <div className="flex min-h-dvh flex-col">
-            <SiteHeader />
+            <SiteHeader user={user} />
             <main className="flex-1">{children}</main>
             <SiteFooter />
           </div>

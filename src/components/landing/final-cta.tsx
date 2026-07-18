@@ -9,7 +9,10 @@ export function FinalCta() {
     <Section spacing="lg">
       <Reveal>
         <Card className="relative overflow-hidden bg-card/70">
-          <div className="grid-lines pointer-events-none absolute inset-0 opacity-[0.35]" aria-hidden />
+          <div
+            className="grid-lines pointer-events-none absolute inset-0 opacity-[0.35]"
+            aria-hidden
+          />
           <div className="relative flex flex-col items-center gap-6 px-6 py-16 text-center md:py-20">
             <span className="eyebrow">Ready when you are</span>
             <h2 className="max-w-2xl font-display text-3xl font-semibold leading-tight tracking-tight md:text-4xl">
@@ -24,7 +27,10 @@ export function FinalCta() {
                 <Link href="/dashboard">Start a QA Run</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link href="/runs/run_9f2ac71b">View Demo Report</Link>
+                <Link href="/demo/report">View Demo Report</Link>
+              </Button>
+              <Button asChild size="lg" variant="ghost">
+                <Link href="/case-study">Read Case Study</Link>
               </Button>
             </div>
           </div>

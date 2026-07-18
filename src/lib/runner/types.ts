@@ -1,6 +1,6 @@
 /**
- * Shared types for the deterministic Playwright runner. No AI types here — this
- * phase is pure browser exploration and raw bug capture.
+ * Shared types for the deterministic Playwright runner. AI gateway types remain
+ * separate so deterministic exploration does not depend on a provider.
  */
 
 export type StepResult = "passed" | "failed" | "skipped";
@@ -26,6 +26,7 @@ export interface RunnerCredentials {
 
 export interface RunnerInput {
   runId: string;
+  userId?: string | null;
   baseUrl: string;
   goal: string;
   credentials?: RunnerCredentials | undefined;

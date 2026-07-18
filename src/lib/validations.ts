@@ -27,7 +27,7 @@ export const createProjectSchema = z.object({
     .min(2, "Project name needs at least 2 characters.")
     .max(80, "Project name must be 80 characters or fewer."),
   baseUrl: httpUrl,
-});
+}).strict();
 
 export const createRunSchema = z.object({
   projectId: z.string().trim().min(1, "Choose a project."),
@@ -36,34 +36,49 @@ export const createRunSchema = z.object({
     .trim()
     .min(10, "Describe the goal in at least 10 characters.")
     .max(1000, "Keep the goal under 1,000 characters."),
-  // Login context is optional and is NEVER persisted — see /api/runs.
-  loginUrl: z.preprocess(emptyToUndefined, httpUrl.optional()),
-  loginEmail: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().email("Enter a valid email address.").optional(),
-  ),
-  loginPassword: z.preprocess(
-    emptyToUndefined,
-    z.string().min(1).max(256, "Password is too long.").optional(),
-  ),
-});
+}).strict();
 
 /**
  * Body for POST /api/runs/[id]/execute. All fields optional — the agent can run
  * without login. Credentials here are used ONLY to drive the browser for this
  * execution and are never stored or logged.
  */
-export const executeRunSchema = z.object({
-  loginUrl: z.preprocess(emptyToUndefined, httpUrl.optional()),
-  loginEmail: z.preprocess(
-    emptyToUndefined,
-    z.string().trim().email("Enter a valid email address.").optional(),
-  ),
-  loginPassword: z.preprocess(
-    emptyToUndefined,
-    z.string().min(1).max(256, "Password is too long.").optional(),
-  ),
-});
+export const executeRunSchema = z
+  .object({
+    loginUrl: z.preprocess(emptyToUndefined, httpUrl.optional()),
+    loginEmail: z.preprocess(
+      emptyToUndefined,
+      z.string().trim().email("Enter a valid email address.").optional(),
+    ),
+    loginPassword: z.preprocess(
+      emptyToUndefined,
+      z.string().min(1).max(256, "Password is too long.").optional(),
+    ),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const loginFields = [value.loginUrl, value.loginEmail, value.loginPassword];
+    if (loginFields.some(Boolean) && !loginFields.every(Boolean)) {
+      if (!value.loginUrl) {
+        context.addIssue({ code: "custom", path: ["loginUrl"], message: "Enter the login URL." });
+      }
+      if (!value.loginEmail) {
+        context.addIssue({ code: "custom", path: ["loginEmail"], message: "Enter the login email." });
+      }
+      if (!value.loginPassword) {
+        context.addIssue({ code: "custom", path: ["loginPassword"], message: "Enter the login password." });
+      }
+    }
+  });
+
+export const resourceIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Identifier is required.")
+  .max(128, "Identifier is too long.")
+  .regex(/^[A-Za-z0-9_-]+$/, "Identifier contains invalid characters.");
+
+export const runIdSchema = resourceIdSchema;
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type CreateRunInput = z.infer<typeof createRunSchema>;

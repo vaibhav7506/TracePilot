@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowRight, ChevronDown, Lock } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Field, FormError } from "@/components/dashboard/form-field";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createRunSchema, fieldErrors } from "@/lib/validations";
 import { cn } from "@/lib/utils";
@@ -48,9 +47,10 @@ export function RunForm({ projects }: { projects: ProjectOption[] }) {
         body: JSON.stringify(parsed.data),
       });
       const json = (await res.json()) as {
+        success?: boolean;
+        data?: { run?: { id: string } };
         error?: string;
         fields?: Record<string, string>;
-        run?: { id: string };
       };
 
       if (!res.ok) {
@@ -59,7 +59,7 @@ export function RunForm({ projects }: { projects: ProjectOption[] }) {
         return;
       }
 
-      setQueuedId(json.run?.id ?? null);
+      setQueuedId(json.data?.run?.id ?? null);
       form.reset();
       router.refresh();
     } catch {
@@ -110,55 +110,6 @@ export function RunForm({ projects }: { projects: ProjectOption[] }) {
           placeholder="Sign up, add a paid plan, and confirm the receipt page renders."
         />
       </Field>
-
-      <fieldset className="flex flex-col gap-5 rounded-md border border-border p-4">
-        <legend className="px-1.5 font-mono text-[0.7rem] uppercase tracking-eyebrow text-muted-foreground">
-          Login — optional
-        </legend>
-
-        <Field label="Login URL" htmlFor="run-login-url" error={errors.loginUrl}>
-          <Input
-            id="run-login-url"
-            name="loginUrl"
-            type="url"
-            inputMode="url"
-            placeholder="https://staging.acme.dev/login"
-          />
-        </Field>
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field label="Email" htmlFor="run-login-email" error={errors.loginEmail}>
-            <Input
-              id="run-login-email"
-              name="loginEmail"
-              type="email"
-              autoComplete="off"
-              placeholder="qa@yourapp.com"
-            />
-          </Field>
-          <Field label="Password" htmlFor="run-login-password" error={errors.loginPassword}>
-            <div className="relative">
-              <Lock
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                id="run-login-password"
-                name="loginPassword"
-                type="password"
-                autoComplete="new-password"
-                placeholder="••••••••"
-                className="pl-9"
-              />
-            </div>
-          </Field>
-        </div>
-
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Credentials are used only to start this run and are never stored. Encrypted secret
-          storage ships with the agent.
-        </p>
-      </fieldset>
 
       <FormError message={formError} />
       {queuedId ? (

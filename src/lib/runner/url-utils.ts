@@ -1,3 +1,9 @@
+import { z } from "zod";
+import { SAFETY_CONFIG } from "@/lib/runner/safety";
+import { isPrivateHostname } from "@/lib/security/network-address";
+
+export { isPrivateHostname } from "@/lib/security/network-address";
+
 /**
  * URL helpers for keeping exploration inside a single site. The runner must
  * never wander onto external domains, so hostname checks are centralized here.
@@ -12,6 +18,38 @@ export function isHttpUrl(value: string): boolean {
   }
 }
 
+export function targetUrlSchema(allowPrivateNetwork = SAFETY_CONFIG.allowPrivateNetwork) {
+  return z
+    .string()
+    .trim()
+    .min(1, "A target URL is required.")
+    .max(2048, "Target URL is too long.")
+    .url("Enter a complete URL beginning with http:// or https://.")
+    .superRefine((value, context) => {
+      const url = new URL(value);
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        context.addIssue({ code: "custom", message: "Only HTTP and HTTPS URLs can be tested." });
+      }
+      if (url.username || url.password) {
+        context.addIssue({
+          code: "custom",
+          message: "URLs must not contain embedded credentials.",
+        });
+      }
+      if (!allowPrivateNetwork && isPrivateHostname(url.hostname)) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Localhost and private network targets are blocked. Development mode requires RUNNER_ALLOW_PRIVATE_NETWORK=true.",
+        });
+      }
+    });
+}
+
+export function validateTargetUrl(value: string): string {
+  return targetUrlSchema().parse(value);
+}
+
 /** Resolve a possibly-relative href against the current page URL. */
 export function resolveHref(base: string, href: string): string | null {
   const trimmed = href.trim();
@@ -19,7 +57,10 @@ export function resolveHref(base: string, href: string): string | null {
   // Skip non-navigational schemes and in-page anchors outright.
   if (/^(mailto:|tel:|javascript:|data:|#)/i.test(trimmed)) return null;
   try {
-    return new URL(trimmed, base).toString();
+    const resolved = new URL(trimmed, base);
+    if (resolved.protocol !== "http:" && resolved.protocol !== "https:") return null;
+    if (!SAFETY_CONFIG.allowPrivateNetwork && isPrivateHostname(resolved.hostname)) return null;
+    return resolved.toString();
   } catch {
     return null;
   }

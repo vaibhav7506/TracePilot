@@ -1,4 +1,4 @@
-import { FolderPlus, Radar } from "lucide-react";
+import { BrainCircuit, FolderPlus, Radar } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProjectForm } from "@/components/dashboard/project-form";
@@ -10,6 +10,9 @@ import { Section, SectionHeader } from "@/components/ui/section";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { runStatusMeta, type RunStatus } from "@/lib/status";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { getUserAiAvailability, type UserAiAvailability } from "@/lib/ai/resolve-user-provider";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -26,22 +29,26 @@ type RecentRun = {
   projectName: string;
 };
 
-async function loadData(): Promise<{
+async function loadData(userId: string): Promise<{
   projects: ProjectOption[];
   recentRuns: RecentRun[];
+  ai: UserAiAvailability;
   dbError: boolean;
 }> {
   try {
-    const [projects, runs] = await Promise.all([
+    const [projects, runs, ai] = await Promise.all([
       prisma.project.findMany({
+        where: { userId },
         orderBy: { createdAt: "desc" },
         select: { id: true, name: true, baseUrl: true },
       }),
       prisma.qaRun.findMany({
+        where: { userId },
         orderBy: { createdAt: "desc" },
         take: 5,
         include: { project: { select: { name: true } } },
       }),
+      getUserAiAvailability(userId),
     ]);
     return {
       projects,
@@ -52,23 +59,31 @@ async function loadData(): Promise<{
         createdAt: run.createdAt,
         projectName: run.project.name,
       })),
+      ai,
       dbError: false,
     };
   } catch (error) {
     console.error("Dashboard data load failed:", error);
-    return { projects: [], recentRuns: [], dbError: true };
+    return {
+      projects: [],
+      recentRuns: [],
+      ai: { kind: "unavailable", provider: null, model: null },
+      dbError: true,
+    };
   }
 }
 
 export default async function DashboardPage() {
-  const { projects, recentRuns, dbError } = await loadData();
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/dashboard");
+  const { projects, recentRuns, ai, dbError } = await loadData(user.id);
 
   return (
     <Section spacing="md">
       <SectionHeader
         eyebrow="Dashboard"
         title="Projects & runs"
-        description="Register the site under test, then queue a run with a goal. The agent picks up queued runs once it ships."
+        description="Register a site, describe the user journey that matters, and let the browser agent turn its trace into an actionable QA report."
       />
 
       {dbError ? (
@@ -79,12 +94,43 @@ export default async function DashboardPage() {
         </p>
       ) : null}
 
+      <Card className="mt-6 bg-card/65">
+        <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="rounded-md border border-primary/25 bg-primary/10 p-2 text-primary">
+              <BrainCircuit className="h-4 w-4" aria-hidden />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {ai.kind === "byok"
+                  ? "BYOK AI active"
+                  : ai.kind === "platform"
+                    ? "Platform AI active"
+                    : "AI unavailable"}
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                {ai.kind === "unavailable"
+                  ? "Browser execution and deterministic test generation remain available without AI."
+                  : `${ai.provider} / ${ai.model} will enrich findings and generated tests.`}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/settings/providers"
+            className="font-mono text-xs text-primary transition-colors hover:text-primary/75"
+          >
+            Manage providers →
+          </Link>
+        </CardContent>
+      </Card>
+
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
         <Card>
           <CardHeader>
             <CardTitle>Start a QA run</CardTitle>
             <CardDescription>
-              Queued runs wait for the agent — nothing executes yet in this phase.
+              Choose a project and a focused goal. TracePilot opens Chromium, records evidence, and
+              keeps destructive actions blocked.
             </CardDescription>
           </CardHeader>
           <CardContent>

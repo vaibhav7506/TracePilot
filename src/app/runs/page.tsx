@@ -2,18 +2,16 @@ import { Radar } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { SeedDemoButton } from "@/components/runs/seed-demo-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { formatDate, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import {
-  runStatusMeta,
-  severityMeta,
-  severityOrder,
-  type FindingSeverity,
-} from "@/lib/status";
+import { runStatusMeta, severityMeta, severityOrder, type FindingSeverity } from "@/lib/status";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Runs",
@@ -22,9 +20,10 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-async function loadRuns() {
+async function loadRuns(userId: string) {
   try {
     return await prisma.qaRun.findMany({
+      where: { userId },
       orderBy: { createdAt: "desc" },
       include: {
         project: { select: { name: true, baseUrl: true } },
@@ -49,7 +48,9 @@ function severityCounts(findings: { severity: FindingSeverity }[]) {
 }
 
 export default async function RunsPage() {
-  const runs = await loadRuns();
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/runs");
+  const runs = await loadRuns(user.id);
 
   return (
     <Section spacing="md">
@@ -58,9 +59,12 @@ export default async function RunsPage() {
         title="Runs"
         description="Each run is one autonomous session against a project. Open any run for its steps, findings, and generated tests."
         actions={
-          <Button asChild>
-            <Link href="/dashboard">New run</Link>
-          </Button>
+          <div className="flex flex-wrap items-start gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/demo/report">Open demo report</Link>
+            </Button>
+            <SeedDemoButton />
+          </div>
         }
       />
 

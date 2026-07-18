@@ -6,13 +6,13 @@ import { useTheme } from "@/components/theme/theme-provider";
 import { cn } from "@/lib/utils";
 
 export function ThemeToggle({ className }: { className?: string }) {
-  const { theme, toggleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   // Avoid a hydration mismatch: render a stable placeholder until mounted.
   useEffect(() => setMounted(true), []);
 
-  const isDark = theme === "dark";
+  const isDark = resolvedTheme === "dark";
 
   return (
     <button

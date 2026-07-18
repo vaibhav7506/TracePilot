@@ -1,8 +1,7 @@
 // TracePilot QA — data model.
 //
 // Projects own QA runs; a run produces browser steps (the trace), findings
-// (detected problems), and generated Playwright tests. The autonomous agent
-// that populates these is implemented in a later phase.
+// (detected problems), and generated Playwright tests.
 
 generator client {
   provider = "prisma-client-js"
@@ -16,6 +15,8 @@ datasource db {
 /// A website under test.
 model Project {
   id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   baseUrl   String
   createdAt DateTime @default(now())
@@ -24,6 +25,7 @@ model Project {
   runs QaRun[]
 
   @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 /// One autonomous QA session against a project.
@@ -34,33 +36,76 @@ model Project {
 /// TODO(secure-storage): store an encrypted secret reference once a KMS/
 /// encrypted-vault integration lands with the agent phase.
 model QaRun {
-  id         String    @id @default(cuid())
-  projectId  String
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  status     RunStatus @default(QUEUED)
-  goal       String
-  startedAt  DateTime?
-  finishedAt DateTime?
-  summary    String?
-  score      Int?
+  status               RunStatus           @default(QUEUED)
+  goal                 String
+  startedAt            DateTime?
+  finishedAt           DateTime?
+  summary              String?
+  score                Int?
+  aiProvider           String?
+  aiModel              String?
+  aiAnalysisStatus     AiAnalysisStatus    @default(NOT_REQUESTED)
+  aiAnalysisError      String?
+  aiTestPlan           Json?
+  aiAnalysis           Json?
+  usedLoginCredentials Boolean             @default(false)
+  generatedTestStatus  GeneratedTestStatus @default(NOT_GENERATED)
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   findings       Finding[]
   steps          BrowserStep[]
   generatedTests GeneratedTest[]
 
   @@index([projectId])
+  @@index([userId, createdAt])
   @@index([status, createdAt])
+}
+
+/// A TracePilot account. Passwords are stored only as salted scrypt hashes.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  projects Project[]
+  runs     QaRun[]
+  apiKeys  UserApiKey[]
+}
+
+/// An encrypted user-owned provider credential. encryptedApiKey is never
+/// selected into client responses; keyPreview is display-only metadata.
+model UserApiKey {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        AiProviderName
+  encryptedApiKey String
+  keyPreview      String
+  model           String
+  baseUrl         String?
+  isDefault       Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId, isDefault])
 }
 
 /// A problem the agent detected during a run.
 model Finding {
-  id                String          @id @default(cuid())
-  runId             String
-  run               QaRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+  id    String @id @default(cuid())
+  runId String
+  run   QaRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   title             String
   description       String
@@ -71,7 +116,7 @@ model Finding {
   screenshotPath    String?
   reproductionSteps Json?
 
-  createdAt         DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([runId, severity])
   @@index([runId, category])
@@ -79,9 +124,9 @@ model Finding {
 
 /// One action in the agent's browser trace.
 model BrowserStep {
-  id             String   @id @default(cuid())
-  runId          String
-  run            QaRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  id    String @id @default(cuid())
+  runId String
+  run   QaRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   order          Int
   action         String
@@ -92,7 +137,7 @@ model BrowserStep {
   consoleErrors  Json?
   networkErrors  Json?
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([runId, order])
   @@index([runId])
@@ -100,13 +145,17 @@ model BrowserStep {
 
 /// A test generated from a verified flow.
 model GeneratedTest {
-  id        String   @id @default(cuid())
-  runId     String
-  run       QaRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  id    String @id @default(cuid())
+  runId String
+  run   QaRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
 
-  title     String
-  framework String   @default("playwright")
-  code      String
+  title          String
+  fileName       String
+  framework      String             @default("playwright")
+  code           String
+  provider       String?
+  model          String?
+  generationMode TestGenerationMode @default(FALLBACK)
 
   createdAt DateTime @default(now())
 
@@ -136,4 +185,33 @@ enum FindingCategory {
   AUTH
   FORM
   UNKNOWN
+}
+
+enum AiAnalysisStatus {
+  NOT_REQUESTED
+  PLANNED
+  PENDING
+  RUNNING
+  COMPLETED
+  UNAVAILABLE
+  FAILED
+}
+
+enum TestGenerationMode {
+  AI
+  FALLBACK
+}
+
+enum GeneratedTestStatus {
+  NOT_GENERATED
+  GENERATING
+  GENERATED
+  FAILED
+}
+
+enum AiProviderName {
+  openai
+  groq
+  anthropic
+  gemini
 }

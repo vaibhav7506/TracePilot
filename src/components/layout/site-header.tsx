@@ -6,14 +6,16 @@ import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/runs", label: "Runs" },
   { href: "/settings", label: "Settings" },
+  { href: "/case-study", label: "Case study" },
 ] as const;
 
-export function SiteHeader() {
+export function SiteHeader({ user }: { user: { id: string; email: string } | null }) {
   const pathname = usePathname();
 
   return (
@@ -41,18 +43,28 @@ export function SiteHeader() {
                 )}
               >
                 {item.label}
-                {active ? (
-                  <span className="mt-1 block h-px w-full bg-primary" aria-hidden />
-                ) : null}
+                {active ? <span className="mt-1 block h-px w-full bg-primary" aria-hidden /> : null}
               </Link>
             );
           })}
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link href="/dashboard">New run</Link>
-          </Button>
+          {user ? (
+            <>
+              <span className="hidden max-w-40 truncate font-mono text-[0.68rem] text-muted-foreground xl:inline">
+                {user.email}
+              </span>
+              <Button asChild size="sm" className="hidden sm:inline-flex">
+                <Link href="/dashboard">New run</Link>
+              </Button>
+              <SignOutButton />
+            </>
+          ) : (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/login">Sign in</Link>
+            </Button>
+          )}
           <ThemeToggle />
         </div>
       </div>

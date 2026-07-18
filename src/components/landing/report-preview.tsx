@@ -8,15 +8,14 @@ import { Section, SectionHeader } from "@/components/ui/section";
 
 const testSource = `import { test, expect } from "@playwright/test";
 
-test("checkout reaches receipt", async ({ page }) => {
-  await page.goto("https://staging.acme.dev");
-  await page.getByRole("link", { name: "Sign in" }).click();
-  await page.getByLabel("Email").fill("qa@acme.dev");
-  await page.getByRole("button", { name: "Add to cart" }).click();
-  await page.goto("/checkout");
-  await page.getByRole("button", { name: "Submit payment" }).click();
-  // ✗ timed out after 5000ms — receipt never rendered
-  await expect(page.getByText("Receipt")).toBeVisible();
+const baseURL = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+
+test("homepage exposes healthy read-only signals", async ({ page }) => {
+  // Validate the discovered entry point without interacting with stateful controls.
+  const response = await page.goto(baseURL, { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBeLessThan(400);
+  await expect(page).toHaveTitle(/.+/);
+  await expect(page.locator("main, body").first()).toBeVisible();
 });`;
 
 export function ReportPreview() {
@@ -29,7 +28,7 @@ export function ReportPreview() {
           description="A single failing flow, reconstructed — severity, the exact step that broke, the screen at the moment it happened, and a test that reproduces it."
           actions={
             <Button asChild variant="outline">
-              <Link href="/runs/run_9f2ac71b">Open full report</Link>
+              <Link href="/demo/report">Open full report</Link>
             </Button>
           }
         />
@@ -126,7 +125,7 @@ export function ReportPreview() {
               <div className="overflow-hidden rounded-md border border-border bg-muted/30">
                 <div className="flex items-center justify-between border-b border-border px-4 py-2">
                   <span className="font-mono text-[0.7rem] text-muted-foreground">
-                    checkout.spec.ts
+                    smoke.spec.ts
                   </span>
                   <Badge variant="outline">generated</Badge>
                 </div>

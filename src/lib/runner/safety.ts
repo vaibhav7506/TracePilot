@@ -1,26 +1,13 @@
-/**
- * Safety rails for autonomous exploration. The runner is deterministic and
- * conservative: it clicks only safe, internal links and never performs actions
- * that could mutate state, spend money, or destroy data.
- */
+import { getPlatformSettings } from "@/lib/settings/config";
 
-/** Hard limits — bound both step count and wall-clock runtime. */
-export const RUNNER_LIMITS = {
-  /** Maximum exploration steps (navigations + interactions) before stopping. */
-  maxSteps: 14,
-  /** Maximum total runtime for a run, in milliseconds. */
-  maxRuntimeMs: 90_000,
-  /** Per-navigation timeout, in milliseconds. */
-  navigationTimeoutMs: 20_000,
-  /** Max internal links to consider per page. */
+const settings = getPlatformSettings().runner;
+
+/** Central, validated runner limits and capture/safety policy. */
+export const RUNNER_CONFIG = {
+  ...settings,
   maxLinksPerPage: 8,
 } as const;
 
-/**
- * Words that mark a destructive or high-consequence action. If any appears in a
- * link/button's text, href, or accessible name, the runner refuses to click it.
- * Matched case-insensitively as substrings, so "Confirm order" catches "order".
- */
 export const DESTRUCTIVE_KEYWORDS: readonly string[] = [
   "delete",
   "remove",
@@ -33,7 +20,6 @@ export const DESTRUCTIVE_KEYWORDS: readonly string[] = [
   "confirm order",
   "transfer",
   "withdraw",
-  // Adjacent high-risk verbs kept conservative on purpose.
   "pay",
   "order",
   "destroy",
@@ -43,28 +29,28 @@ export const DESTRUCTIVE_KEYWORDS: readonly string[] = [
   "log out",
 ] as const;
 
-/** True if the given text contains any destructive keyword. */
+export const SAFETY_CONFIG = {
+  destructiveKeywords: DESTRUCTIVE_KEYWORDS,
+  destructiveActionProtection: settings.destructiveActionProtection,
+  sameDomainOnly: settings.sameDomainOnly,
+  allowPrivateNetwork: settings.allowPrivateNetwork,
+} as const;
+
 export function isDestructive(...texts: Array<string | null | undefined>): boolean {
   const haystack = texts
-    .filter((t): t is string => Boolean(t))
+    .filter((text): text is string => Boolean(text))
     .join(" ")
     .toLowerCase();
   if (!haystack) return false;
   return DESTRUCTIVE_KEYWORDS.some((keyword) => haystack.includes(keyword));
 }
 
-/**
- * Redact anything that looks like a submitted credential from a string before
- * it is logged or persisted. Belt-and-suspenders: the runner already avoids
- * logging passwords, but network/console lines can echo values.
- */
-export function redactCredentials(text: string, credentials?: { email?: string; password?: string }): string {
-  let out = text;
-  if (credentials?.password) {
-    out = out.split(credentials.password).join("«redacted»");
-  }
-  if (credentials?.email) {
-    out = out.split(credentials.email).join("«redacted-email»");
-  }
-  return out;
+export function redactCredentials(
+  text: string,
+  credentials?: { email?: string; password?: string },
+): string {
+  let output = text;
+  if (credentials?.password) output = output.split(credentials.password).join("«redacted»");
+  if (credentials?.email) output = output.split(credentials.email).join("«redacted-email»");
+  return output;
 }

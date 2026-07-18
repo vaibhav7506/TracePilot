@@ -41,9 +41,10 @@
 
     --radius: 0.7rem;
 
-    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-    --font-display: "Space Grotesk", var(--font-sans);
-    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    /* Local-first type keeps first paint private, fast, and independent of a font CDN. */
+    --font-sans: "Segoe UI Variable Text", "Aptos", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Aptos Display", var(--font-sans);
+    --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, ui-monospace, monospace;
   }
 
   .dark {
@@ -133,11 +134,22 @@
 
   /* Hairline grid backdrop for hero / section atmosphere. */
   .grid-lines {
-    background-image:
-      linear-gradient(to right, rgb(var(--border) / 0.5) 1px, transparent 1px),
+    background-image: linear-gradient(to right, rgb(var(--border) / 0.5) 1px, transparent 1px),
       linear-gradient(to bottom, rgb(var(--border) / 0.5) 1px, transparent 1px);
     background-size: 56px 56px;
     mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
     -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+  }
+}
+
+@keyframes progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  50% {
+    transform: translateX(150%);
+  }
+  100% {
+    transform: translateX(360%);
   }
 }

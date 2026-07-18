@@ -36,9 +36,10 @@ export function ProjectForm() {
         body: JSON.stringify(parsed.data),
       });
       const json = (await res.json()) as {
+        success?: boolean;
+        data?: { project?: { name: string } };
         error?: string;
         fields?: Record<string, string>;
-        project?: { name: string };
       };
 
       if (!res.ok) {
@@ -47,7 +48,7 @@ export function ProjectForm() {
         return;
       }
 
-      setCreated(json.project?.name ?? parsed.data.name);
+      setCreated(json.data?.project?.name ?? parsed.data.name);
       form.reset();
       router.refresh();
     } catch {

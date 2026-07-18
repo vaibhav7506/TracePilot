@@ -26,22 +26,27 @@ export default function AgentScene() {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
+    const currentContainer = mountRef.current;
+    if (!currentContainer) return;
+    const container: HTMLDivElement = currentContainer;
 
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const scene = new THREE.Scene();
-    const width = mount.clientWidth;
-    const height = mount.clientHeight;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
 
     const camera = new THREE.PerspectiveCamera(46, width / height, 0.1, 100);
     camera.position.set(0, 0, 13);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: window.devicePixelRatio <= 1.5,
+      powerPreference: "low-power",
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setSize(width, height);
-    mount.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     // Palette (re-read on theme change).
     let nodeColor = cssColor("--muted-foreground", "#9a9188");
@@ -50,13 +55,35 @@ export default function AgentScene() {
 
     // --- Graph layout: a loose, hand-placed route map ---------------------
     const layout: Array<[number, number, number]> = [
-      [-6.2, 2.4, 0], [-3.6, 3.4, -1], [-4.2, -1.4, 0.6], [-1.2, 0.6, 0],
-      [-0.4, -3.0, -0.8], [1.8, 2.8, 0.4], [2.4, -1.2, 0], [4.8, 1.0, -0.6],
-      [5.4, -2.4, 0.5], [3.0, 4.0, -1.2], [-2.0, -3.6, 0.3],
+      [-6.2, 2.4, 0],
+      [-3.6, 3.4, -1],
+      [-4.2, -1.4, 0.6],
+      [-1.2, 0.6, 0],
+      [-0.4, -3.0, -0.8],
+      [1.8, 2.8, 0.4],
+      [2.4, -1.2, 0],
+      [4.8, 1.0, -0.6],
+      [5.4, -2.4, 0.5],
+      [3.0, 4.0, -1.2],
+      [-2.0, -3.6, 0.3],
     ];
     const edges: Array<[number, number]> = [
-      [0, 1], [0, 2], [1, 3], [2, 3], [2, 10], [3, 4], [3, 5], [4, 6],
-      [4, 10], [5, 6], [5, 9], [6, 7], [6, 8], [7, 8], [7, 9], [9, 5],
+      [0, 1],
+      [0, 2],
+      [1, 3],
+      [2, 3],
+      [2, 10],
+      [3, 4],
+      [3, 5],
+      [4, 6],
+      [4, 10],
+      [5, 6],
+      [5, 9],
+      [6, 7],
+      [6, 8],
+      [7, 8],
+      [7, 9],
+      [9, 5],
     ];
 
     const group = new THREE.Group();
@@ -86,7 +113,11 @@ export default function AgentScene() {
     }
     const edgeGeo = new THREE.BufferGeometry();
     edgeGeo.setAttribute("position", new THREE.Float32BufferAttribute(edgePositions, 3));
-    const edgeMat = new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 0.5 });
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: edgeColor,
+      transparent: true,
+      opacity: 0.5,
+    });
     const edgeLines = new THREE.LineSegments(edgeGeo, edgeMat);
     group.add(edgeLines);
 
@@ -97,7 +128,11 @@ export default function AgentScene() {
     group.add(agent);
 
     const haloGeo = new THREE.SphereGeometry(0.42, 24, 24);
-    const haloMat = new THREE.MeshBasicMaterial({ color: agentColor, transparent: true, opacity: 0.18 });
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: agentColor,
+      transparent: true,
+      opacity: 0.18,
+    });
     const halo = new THREE.Mesh(haloGeo, haloMat);
     agent.add(halo);
 
@@ -137,13 +172,13 @@ export default function AgentScene() {
     let targetRotX = 0;
     let targetRotY = 0;
     function onPointerMove(event: PointerEvent) {
-      const rect = mount.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       const nx = (event.clientX - rect.left) / rect.width - 0.5;
       const ny = (event.clientY - rect.top) / rect.height - 0.5;
       targetRotY = nx * 0.4;
       targetRotX = ny * 0.25;
     }
-    window.addEventListener("pointermove", onPointerMove);
+    if (!prefersReduced) container.addEventListener("pointermove", onPointerMove);
 
     const clock = new THREE.Clock();
     let raf = 0;
@@ -155,6 +190,16 @@ export default function AgentScene() {
       renderer.render(scene, camera);
     }
 
+    function onVisibilityChange() {
+      if (prefersReduced || disposed) return;
+      if (document.hidden) {
+        cancelAnimationFrame(raf);
+      } else {
+        clock.getDelta();
+        animate();
+      }
+    }
+
     function animate() {
       if (disposed) return;
       raf = requestAnimationFrame(animate);
@@ -164,7 +209,8 @@ export default function AgentScene() {
       const from = nodes[fromIndex]?.pos;
       const to = nodes[toIndex]?.pos;
       if (from && to) {
-        const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+        const eased =
+          progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
         agent.position.lerpVectors(from, to, Math.min(eased, 1));
       }
 
@@ -223,18 +269,22 @@ export default function AgentScene() {
     }
 
     const themeObserver = new MutationObserver(applyTheme);
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
 
     function onResize() {
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
       if (prefersReduced) renderStatic();
     }
     const resizeObserver = new ResizeObserver(onResize);
-    resizeObserver.observe(mount);
+    resizeObserver.observe(container);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     if (prefersReduced) {
       renderStatic();
@@ -245,7 +295,8 @@ export default function AgentScene() {
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
-      window.removeEventListener("pointermove", onPointerMove);
+      container.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       themeObserver.disconnect();
       resizeObserver.disconnect();
       renderer.dispose();
@@ -259,8 +310,8 @@ export default function AgentScene() {
       haloMat.dispose();
       for (const node of nodes) (node.mesh.material as THREE.Material).dispose();
       for (const pulse of pulses) (pulse.mesh.material as THREE.Material).dispose();
-      if (renderer.domElement.parentNode === mount) {
-        mount.removeChild(renderer.domElement);
+      if (renderer.domElement.parentNode === container) {
+        container.removeChild(renderer.domElement);
       }
     };
   }, []);

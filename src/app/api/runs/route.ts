@@ -1,12 +1,17 @@
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import { createRunSchema, fieldErrors } from "@/lib/validations";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) return apiError("Authentication required.", 401);
   try {
     const runs = await prisma.qaRun.findMany({
+      where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       include: {
         project: { select: { id: true, name: true, baseUrl: true } },
@@ -14,52 +19,49 @@ export async function GET() {
         _count: { select: { steps: true, generatedTests: true } },
       },
     });
-    return NextResponse.json({ runs });
+    const safeRuns = runs.map(({ aiAnalysisError: _internalAnalysisError, ...run }) => run);
+    return apiSuccess({ runs: safeRuns });
   } catch (error) {
     console.error("GET /api/runs failed:", error);
-    return NextResponse.json({ error: "Could not load runs." }, { status: 500 });
+    return apiError("Could not load runs.", 500);
   }
 }
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return apiError("Authentication required.", 401);
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Request body must be JSON." }, { status: 400 });
+    return apiError("Request body must be JSON.", 400);
   }
 
   const parsed = createRunSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Check the highlighted fields.", fields: fieldErrors(parsed.error) },
-      { status: 400 },
-    );
+    return apiError("Check the highlighted fields.", 400, {
+      fields: fieldErrors(parsed.error),
+    });
   }
 
-  // SECURITY: loginUrl / loginEmail / loginPassword are validated above but
-  // intentionally NOT written to the database. They exist only in this request
-  // scope; the agent phase will consume them from the queued-run handoff.
-  // TODO(secure-storage): replace with encrypted secret storage (KMS/vault)
-  // before the agent persists any credential material.
   const { projectId, goal } = parsed.data;
 
   try {
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    const project = await prisma.project.findFirst({ where: { id: projectId, userId: user.id } });
     if (!project) {
-      return NextResponse.json(
-        { error: "Check the highlighted fields.", fields: { projectId: "Project not found." } },
-        { status: 404 },
-      );
+      return apiError("Check the highlighted fields.", 404, {
+        fields: { projectId: "Project not found." },
+      });
     }
 
     const run = await prisma.qaRun.create({
-      data: { projectId, goal, status: "QUEUED" },
+      data: { projectId, userId: user.id, goal, status: "QUEUED" },
       include: { project: { select: { id: true, name: true, baseUrl: true } } },
     });
-    return NextResponse.json({ run }, { status: 201 });
+    const { aiAnalysisError: _internalAnalysisError, ...safeRun } = run;
+    return apiSuccess({ run: safeRun }, 201);
   } catch (error) {
     console.error("POST /api/runs failed:", error);
-    return NextResponse.json({ error: "Could not create the run." }, { status: 500 });
+    return apiError("Could not create the run.", 500);
   }
 }
